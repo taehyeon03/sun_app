@@ -1,5 +1,8 @@
 {
   "expo": {
+    "cli": {
+      "appVersionSource": "remote"
+    },
     "name": "SUNGARD - 선크림 타이머",
     "slug": "sungard",
     "version": "1.0.0",
@@ -32,7 +35,9 @@
       "intentFilters": [
         {
           "action": "android.intent.action.MAIN",
-          "category": ["android.intent.category.LAUNCHER"]
+          "category": [
+            "android.intent.category.LAUNCHER"
+          ]
         }
       ]
     },
@@ -49,8 +54,12 @@
     "scheme": "sungard",
     "extra": {
       "eas": {
-        "projectId": "66561ac9-5c86-4dd5-a259-b0b9a102ad55"
+        "projectId": "17508086-a198-488d-b006-400cbb1f9478"
+      },
+      "router": {
+        "origin": false
       }
-    }
+    },
+    "owner": "taehyeon_yee"
   }
 }
