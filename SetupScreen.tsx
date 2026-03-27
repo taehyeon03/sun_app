@@ -10,7 +10,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import {
   ProductType, SpfLevel, UvLevel,
   REAPPLY_RULES, calcReapplyMinutes, formatDuration,
-} from "../lib/sunscreen";
+} from "./sunscreen";
 
 export interface SunscreenConfig {
   productType: ProductType;

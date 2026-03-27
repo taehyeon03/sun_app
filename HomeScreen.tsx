@@ -13,11 +13,11 @@ import { SunscreenConfig } from "./SetupScreen";
 import {
   formatTime, formatDuration, getAmountDescription,
   calcReapplyMinutes, REAPPLY_RULES,
-} from "../lib/sunscreen";
+} from "./sunscreen";
 import {
   scheduleReapplyNotification,
   cancelAllNotifications,
-} from "../lib/notifications";
+} from "./notifications";
 
 interface LogEntry {
   time: Date;

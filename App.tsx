@@ -1,10 +1,10 @@
 // App.tsx — SUNGARD 메인 엔트리
 import React, { useState, useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import SplashScreen from "./src/screens/SplashScreen";
-import SetupScreen, { SunscreenConfig } from "./src/screens/SetupScreen";
-import HomeScreen from "./src/screens/HomeScreen";
-import { requestNotificationPermission } from "./src/lib/notifications";
+import SplashScreen from "./SplashScreen";
+import SetupScreen, { SunscreenConfig } from "./SetupScreen";
+import HomeScreen from "./HomeScreen";
+import { requestNotificationPermission } from "./notifications";
 
 type Screen = "splash" | "setup" | "home";
 
