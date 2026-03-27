@@ -1,8 +1,5 @@
 {
   "expo": {
-    "cli": {
-      "appVersionSource": "remote"
-    },
     "name": "SUNGARD - 선크림 타이머",
     "slug": "sungard",
     "version": "1.0.0",
@@ -23,10 +20,6 @@
       },
       "package": "com.sungard.sunscreentimer",
       "versionCode": 1,
-      "versionName": "1.0.0",
-      "targetSdkVersion": 34,
-      "compileSdkVersion": 34,
-      "minSdkVersion": 21,
       "permissions": [
         "VIBRATE",
         "POST_NOTIFICATIONS",
@@ -49,7 +42,8 @@
           "icon": "./assets/notification-icon.png",
           "color": "#FFD060"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "scheme": "sungard",
     "extra": {
