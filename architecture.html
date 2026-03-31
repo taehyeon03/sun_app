@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUNGARD 앱 아키텍처</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #0f1923 0%, #1a2f4f 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            background: linear-gradient(135deg, #FFD060 0%, #FF8C42 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #aaa;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 208, 96, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 208, 96, 0.4);
+            transform: translateY(-5px);
+        }
+
+        .card h3 {
+            color: #FFD060;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .card p {
+            line-height: 1.6;
+            color: #ccc;
+            margin-bottom: 12px;
+            font-size: 0.95em;
+        }
+
+        .tag {
+            display: inline-block;
+            background: rgba(255, 208, 96, 0.15);
+            border: 1px solid rgba(255, 208, 96, 0.3);
+            color: #FFD060;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .flow {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 208, 96, 0.2);
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 50px;
+            backdrop-filter: blur(10px);
+        }
+
+        .flow h2 {
+            color: #FFD060;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 1.5em;
+        }
+
+        .flow-diagram {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .flow-item {
+            background: linear-gradient(135deg, rgba(255, 208, 96, 0.1), rgba(255, 140, 66, 0.1));
+            border: 2px solid rgba(255, 208, 96, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            flex: 0 1 150px;
+            font-weight: 500;
+        }
+
+        .flow-arrow {
+            font-size: 2em;
+            color: #FFD060;
+            margin: 0 10px;
+        }
+
+        .structure {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 208, 96, 0.2);
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 50px;
+            backdrop-filter: blur(10px);
+        }
+
+        .structure h2 {
+            color: #FFD060;
+            margin-bottom: 25px;
+            font-size: 1.5em;
+        }
+
+        .file-tree {
+            font-family: 'Courier New', monospace;
+            line-height: 1.8;
+            color: #aaa;
+            padding-left: 20px;
+        }
+
+        .folder {
+            color: #FFD060;
+            font-weight: 500;
+        }
+
+        .file {
+            color: #b0d4ff;
+        }
+
+        .description {
+            color: #888;
+            font-size: 0.85em;
+            margin-left: 20px;
+        }
+
+        .stack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 50px;
+        }
+
+        .stack-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 140, 66, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .stack-item h4 {
+            color: #FF8C42;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .package {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-family: monospace;
+            font-size: 0.85em;
+            color: #ddd;
+        }
+
+        .algorithm {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 4px solid rgba(255, 208, 96, 0.5);
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .algorithm h4 {
+            color: #FFD060;
+            margin-bottom: 10px;
+        }
+
+        .algorithm p {
+            color: #ccc;
+            font-size: 0.95em;
+            margin-bottom: 8px;
+        }
+
+        .source {
+            color: #888;
+            font-size: 0.8em;
+            font-style: italic;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+
+        .feature-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 208, 96, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .feature-item h4 {
+            color: #FFD060;
+            margin-bottom: 12px;
+        }
+
+        .feature-item ul {
+            list-style: none;
+            color: #ccc;
+        }
+
+        .feature-item li {
+            padding: 5px 0;
+            font-size: 0.95em;
+        }
+
+        .feature-item li:before {
+            content: "▸ ";
+            color: #FF8C42;
+            margin-right: 8px;
+        }
+
+        .footer {
+            text-align: center;
+            color: #888;
+            padding: 30px 0;
+            border-top: 1px solid rgba(255, 208, 96, 0.1);
+            margin-top: 50px;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .flow-diagram {
+                flex-direction: column;
+            }
+
+            .flow-arrow {
+                transform: rotate(90deg);
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>☀️ SUNGARD</h1>
+        <p class="subtitle">선크림 타이머 앱 - 아키텍처 가이드</p>
+
+        <!-- 앱 개요 -->
+        <div class="grid">
+            <div class="card">
+                <h3>📱 앱 타입</h3>
+                <p>React Native + Expo 기반 크로스플랫폼 모바일 앱</p>
+                <span class="tag">React Native</span>
+                <span class="tag">TypeScript</span>
+                <span class="tag">Expo</span>
+            </div>
+
+            <div class="card">
+                <h3>🎯 목적</h3>
+                <p>논문 기반 과학적 선크림 재도포 알림 시스템</p>
+                <span class="tag">Health Tech</span>
+                <span class="tag">Education</span>
+                <span class="tag">UX</span>
+            </div>
+
+            <div class="card">
+                <h3>🚀 배포</h3>
+                <p>Google Play Store 배포 가능한 완성 앱</p>
+                <span class="tag">AAB Build</span>
+                <span class="tag">EAS</span>
+                <span class="tag">Production</span>
+            </div>
+        </div>
+
+        <!-- 사용자 흐름 -->
+        <div class="flow">
+            <h2>사용자 여정</h2>
+            <div class="flow-diagram">
+                <div class="flow-item">
+                    <strong>앱 실행</strong><br>
+                    <span style="font-size: 0.8em; color: #aaa;">SplashScreen.tsx</span>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-item">
+                    <strong>태양 차단</strong><br>
+                    <span style="font-size: 0.8em; color: #aaa;">손으로 스와이프</span>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-item">
+                    <strong>선크림 설정</strong><br>
+                    <span style="font-size: 0.8em; color: #aaa;">SetupScreen.tsx</span>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-item">
+                    <strong>타이머 실행</strong><br>
+                    <span style="font-size: 0.8em; color: #aaa;">HomeScreen.tsx</span>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-item">
+                    <strong>푸시 알림</strong><br>
+                    <span style="font-size: 0.8em; color: #aaa;">notifications.ts</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 주요 기능 -->
+        <div>
+            <h2 style="color: #FFD060; margin-bottom: 30px; font-size: 1.5em;">🎨 주요 기능</h2>
+            <div class="features">
+                <div class="feature-item">
+                    <h4>1️⃣ 스플래시 제스처</h4>
+                    <ul>
+                        <li>일몰 배경 애니메이션</li>
+                        <li>손으로 태양 차단</li>
+                        <li>스와이프 제스처 감지</li>
+                        <li>햅틱 피드백</li>
+                        <li>진입 시각 자동 기록</li>
+                    </ul>
+                </div>
+
+                <div class="feature-item">
+                    <h4>2️⃣ 선크림 정보 설정</h4>
+                    <ul>
+                        <li>제품 형태 선택</li>
+                        <li>SPF 등급 설정</li>
+                        <li>UV 지수 환경 설정</li>
+                        <li>땀/수영 여부 입력</li>
+                        <li>3단계 마법사</li>
+                    </ul>
+                </div>
+
+                <div class="feature-item">
+                    <h4>3️⃣ 메인 타이머</h4>
+                    <ul>
+                        <li>원형 진행 아크</li>
+                        <li>색상 상태 변화</li>
+                        <li>권장 도포량 안내</li>
+                        <li>히스토리 기록</li>
+                        <li>빠른 도포 버튼</li>
+                    </ul>
+                </div>
+
+                <div class="feature-item">
+                    <h4>4️⃣ 푸시 알림</h4>
+                    <ul>
+                        <li>재도포 20분 전 예고</li>
+                        <li>재도포 시간 주 알림</li>
+                        <li>도포량 안내 포함</li>
+                        <li>도포 후 자동 재스케줄</li>
+                        <li>로컬 알림</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 파일 구조 -->
+        <div class="structure">
+            <h2>📁 프로젝트 구조</h2>
+            <div class="file-tree">
+                <div><span class="folder">sungard/</span></div>
+                <div>├── <span class="file">App.tsx</span> <span class="description">루트 엔트리, 3가지 화면 상태관리</span></div>
+                <div>├── <span class="file">app.json</span> <span class="description">Expo 설정, 안드로이드 권한</span></div>
+                <div>├── <span class="file">eas.json</span> <span class="description">EAS 빌드 설정</span></div>
+                <div>├── <span class="file">package.json</span> <span class="description">의존성 관리</span></div>
+                <div>├── <span class="folder">src/</span></div>
+                <div>│   ├── <span class="folder">lib/</span></div>
+                <div>│   │   ├── <span class="file">sunscreen.ts</span> <span class="description">논문 기반 핵심 알고리즘</span></div>
+                <div>│   │   └── <span class="file">notifications.ts</span> <span class="description">푸시 알림 서비스</span></div>
+                <div>│   └── <span class="folder">screens/</span></div>
+                <div>│       ├── <span class="file">SplashScreen.tsx</span> <span class="description">태양 차단 제스처 화면</span></div>
+                <div>│       ├── <span class="file">SetupScreen.tsx</span> <span class="description">선크림 정보 입력 화면</span></div>
+                <div>│       └── <span class="file">HomeScreen.tsx</span> <span class="description">메인 타이머 화면</span></div>
+                <div>├── <span class="folder">assets/</span> <span class="description">아이콘, 스플래시 이미지</span></div>
+                <div>└── <span class="folder">node_modules/</span> <span class="description">의존성</span></div>
+            </div>
+        </div>
+
+        <!-- 핵심 알고리즘 -->
+        <div>
+            <h2 style="color: #FFD060; margin-bottom: 30px; font-size: 1.5em;">🔬 논문 기반 알고리즘</h2>
+
+            <div class="algorithm">
+                <h4>2 mg/cm² 기준 SPF 측정</h4>
+                <p>출처: Diffey & Robson (1989), J Soc Cosmet Chem</p>
+                <p>표준 도포량 기준 설정</p>
+                <span class="source">sunscreen.ts에서 구현</span>
+            </div>
+
+            <div class="algorithm">
+                <h4>2시간마다 재도포 권장</h4>
+                <p>출처: FDA Final Rule on Sunscreen (2011)</p>
+                <p>타이머 기본 주기 설정</p>
+                <span class="source">notifications.ts에서 스케줄링</span>
+            </div>
+
+            <div class="algorithm">
+                <h4>내수성: 40분/80분 기준</h4>
+                <p>출처: FDA 21 CFR Parts 201 and 310</p>
+                <p>수영/땀 여부에 따른 조정</p>
+                <span class="source">SetupScreen.tsx 사용자 입력</span>
+            </div>
+
+            <div class="algorithm">
+                <h4>UV Index별 노출 제한</h4>
+                <p>출처: WHO UV Index Guidelines (2002)</p>
+                <p>환경 조건에 따른 재도포 주기 조정</p>
+                <span class="source">SetupScreen.tsx 설정 선택</span>
+            </div>
+
+            <div class="algorithm">
+                <h4>행동 변화 중요성</h4>
+                <p>출처: Autier et al. (2007), JAMA Dermatology</p>
+                <p>사용자 교육 및 습관 형성</p>
+                <span class="source">UI/UX 디자인에 반영</span>
+            </div>
+        </div>
+
+        <!-- 기술 스택 -->
+        <div>
+            <h2 style="color: #FFD060; margin-bottom: 30px; font-size: 1.5em;">⚙️ 기술 스택</h2>
+            <div class="stack">
+                <div class="stack-item">
+                    <h4>프레임워크</h4>
+                    <div class="package">React 18.2.0</div>
+                    <div class="package">React Native 0.74.5</div>
+                    <div class="package">Expo 51.0.0</div>
+                    <div class="package">TypeScript 5.3.3</div>
+                </div>
+
+                <div class="stack-item">
+                    <h4>UI & 애니메이션</h4>
+                    <div class="package">react-native-reanimated 3.10.0</div>
+                    <div class="package">react-native-svg 15.2.0</div>
+                    <div class="package">expo-linear-gradient 13.0.2</div>
+                    <div class="package">expo-haptics 13.0.0</div>
+                </div>
+
+                <div class="stack-item">
+                    <h4>네비게이션 & 제스처</h4>
+                    <div class="package">expo-router 3.5.0</div>
+                    <div class="package">react-native-gesture-handler 2.16.0</div>
+                    <div class="package">react-native-screens 3.31.1</div>
+                </div>
+
+                <div class="stack-item">
+                    <h4>알림 & 센서</h4>
+                    <div class="package">expo-notifications 0.28.0</div>
+                    <div class="package">expo-sensors 13.0.0</div>
+                    <div class="package">expo-device 6.0.0</div>
+                </div>
+
+                <div class="stack-item">
+                    <h4>저장소 & 유틸</h4>
+                    <div class="package">@react-native-async-storage 1.23.1</div>
+                    <div class="package">date-fns 3.6.0</div>
+                    <div class="package">@expo/vector-icons 14.0.0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 디자인 시스템 -->
+        <div class="card" style="margin-bottom: 50px; grid-column: 1/-1;">
+            <h3>🎨 디자인 스펙</h3>
+            <p><strong>색상 팔레트</strong></p>
+            <div style="display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 40px; height: 40px; background: #0f1923; border: 1px solid #444; border-radius: 4px;"></div>
+                    <span>Deep Navy #0f1923</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 40px; height: 40px; background: #FFD060; border: 1px solid #444; border-radius: 4px;"></div>
+                    <span>Sun Gold #FFD060</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 40px; height: 40px; background: #FF8C42; border: 1px solid #444; border-radius: 4px;"></div>
+                    <span>Warm Orange #FF8C42</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 40px; height: 40px; background: #f59e0b; border: 1px solid #444; border-radius: 4px;"></div>
+                    <span>Amber (Urgent) #f59e0b</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 40px; height: 40px; background: #ef4444; border: 1px solid #444; border-radius: 4px;"></div>
+                    <span>Red (Overdue) #ef4444</span>
+                </div>
+            </div>
+            <p><strong>테마:</strong> 다크 + 일몰 그라디언트</p>
+            <p><strong>방향:</strong> 세로 (portrait only)</p>
+        </div>
+
+        <!-- 배포 프로세스 -->
+        <div class="flow">
+            <h2>🚀 배포 파이프라인</h2>
+            <div class="file-tree">
+                <div><strong>개발 환경</strong></div>
+                <div>$ npx expo start</div>
+                <div style="margin-top: 20px;"><strong>빌드 프로필</strong></div>
+                <div>├── development: 개발용 (테스트)</div>
+                <div>├── preview: 미리보기 (베타)</div>
+                <div>└── production: 스토어 배포 (AAB)</div>
+                <div style="margin-top: 20px;"><strong>배포 명령어</strong></div>
+                <div>$ npm run build:production</div>
+                <div>$ npm run submit:android</div>
+                <div style="margin-top: 20px; color: #aaa;">자세한 사항은 DEPLOYMENT_GUIDE.md 참고</div>
+            </div>
+        </div>
+
+        <!-- 앱 검수 체크리스트 -->
+        <div class="structure">
+            <h2>📋 Play Store 출시 체크리스트</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px;">
+                <div style="background: rgba(255, 140, 66, 0.1); padding: 15px; border-radius: 8px; border-left: 3px solid #FF8C42;">
+                    <strong style="color: #FF8C42;">앱 설정</strong>
+                    <ul style="margin-top: 10px; list-style: none; color: #ccc; font-size: 0.9em;">
+                        <li>✓ app.json 패키지명 변경</li>
+                        <li>✓ EAS Project ID 설정</li>
+                        <li>✓ 앱 아이콘 (1024x1024)</li>
+                        <li>✓ 스플래시 이미지</li>
+                    </ul>
+                </div>
+
+                <div style="background: rgba(255, 208, 96, 0.1); padding: 15px; border-radius: 8px; border-left: 3px solid #FFD060;">
+                    <strong style="color: #FFD060;">스토어 설정</strong>
+                    <ul style="margin-top: 10px; list-style: none; color: #ccc; font-size: 0.9em;">
+                        <li>✓ 스크린샷 준비</li>
+                        <li>✓ 개인정보 처리방침 URL</li>
+                        <li>✓ 앱 설명 및 카테고리</li>
+                        <li>✓ 컨텐츠 레이팅</li>
+                    </ul>
+                </div>
+
+                <div style="background: rgba(100, 200, 255, 0.1); padding: 15px; border-radius: 8px; border-left: 3px solid #64c8ff;">
+                    <strong style="color: #64c8ff;">빌드 및 배포</strong>
+                    <ul style="margin-top: 10px; list-style: none; color: #ccc; font-size: 0.9em;">
+                        <li>✓ AAB 빌드 생성</li>
+                        <li>✓ Google Play Console 계정</li>
+                        <li>✓ AAB 파일 업로드</li>
+                        <li>✓ 출시 검토 신청</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>SUNGARD - 논문 기반 선크림 타이머 앱</p>
+            <p>React Native + Expo | TypeScript | Google Play Store Ready</p>
+            <p>© 2026 모두를 위한 피부 건강</p>
+        </div>
+    </div>
+</body>
+</html>

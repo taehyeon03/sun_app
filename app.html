@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>☀ SUNGARD - 선크림 APP</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f1923 0%, #1a3060 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .container { max-width: 100%; height: 100vh; display: flex; flex-direction: column; }
+
+        .header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .title { font-size: 28px; font-weight: 900; color: #FFD060; }
+        .subtitle { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 5px; }
+
+        .content { flex: 1; display: flex; overflow: hidden; }
+
+        .screen { flex: 1; display: flex; flex-direction: column; }
+        .screen.hidden { display: none; }
+
+        /* Setup Screen */
+        #setupScreen {
+            padding: 20px;
+            overflow-y: auto;
+            max-width: 500px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .setup-group { margin-bottom: 20px; }
+        .label { font-size: 12px; font-weight: 600; color: #fff; margin-bottom: 10px; display: block; }
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+        .btn { padding: 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 12px; transition: all 0.2s; }
+        .btn:hover { background: rgba(255,255,255,0.12); }
+        .btn.active { background: #FFD060; color: #0f1923; font-weight: 600; border-color: #FFD060; }
+
+        .start-btn { width: 100%; padding: 14px; background: #FFD060; border: none; border-radius: 8px; color: #0f1923; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 20px; }
+        .start-btn:hover { background: #FFC940; }
+
+        /* Apply Screen */
+        #applyScreen {
+            flex-direction: column;
+            padding: 0;
+        }
+
+        .apply-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .apply-content {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .video-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            flex: 1;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #video { display: none; }
+        #canvas { max-width: 100%; max-height: 100%; }
+        #outputCanvas { position: absolute; top: 0; left: 0; }
+
+        .info-section {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-box { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+        .info-title { font-size: 12px; font-weight: 600; color: #FFD060; margin-bottom: 10px; }
+        .info-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+        .info-label { color: rgba(255,255,255,0.5); }
+        .info-value { color: #fff; font-weight: 600; }
+
+        .coverage-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .coverage-fill { height: 100%; background: #FFD060; transition: width 0.3s; }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: auto;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255,208,96,0.2);
+            border: 1px solid rgba(255,208,96,0.4);
+            border-radius: 6px;
+            color: #FFD060;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .action-btn:hover { background: rgba(255,208,96,0.3); }
+        .action-btn.finish { background: #FFD060; color: #0f1923; border-color: #FFD060; }
+
+        /* Timer Screen */
+        #timerScreen {
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+            width: 100%;
+            overflow-y: auto;
+        }
+
+        .timer-box { background: rgba(255,208,96,0.15); border: 1px solid rgba(255,208,96,0.3); border-radius: 12px; padding: 40px 20px; text-align: center; margin-bottom: 20px; }
+        .timer-value { font-size: 56px; font-weight: 900; color: #FFD060; font-family: 'Courier New', monospace; margin: 10px 0; }
+
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .info-card { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; font-size: 11px; }
+        .card-label { color: rgba(255,255,255,0.5); margin-bottom: 4px; }
+        .card-value { color: #fff; font-weight: 600; font-size: 13px; }
+
+        .status-box { padding: 12px; background: rgba(76,175,80,0.15); border: 1px solid rgba(76,175,80,0.3); border-radius: 8px; margin-bottom: 20px; font-size: 12px; color: rgba(255,255,255,0.8); line-height: 1.6; }
+        .guide-title { color: #4caf50; font-weight: 700; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">☀ SUNGARD</div>
+            <div class="subtitle">선크림 바르기 인식 앱</div>
+        </div>
+
+        <div class="content">
+            <!-- Setup Screen -->
+            <div id="setupScreen" class="screen">
+                <div class="setup-group">
+                    <label class="label">피부 타입</label>
+                    <div class="btn-group">
+                        <button class="btn active" onclick="selectOption('skin','oily')">지성</button>
+                        <button class="btn" onclick="selectOption('skin','dry')">건성</button>
+                        <button class="btn" onclick="selectOption('skin','sensitive')">민감성</button>
+                        <button class="btn" onclick="selectOption('skin','combo')">복합성</button>
+                    </div>
+                </div>
+
+                <div class="setup-group">
+                    <label class="label">활동 유형</label>
+                    <div class="btn-group">
+                        <button class="btn active" onclick="selectOption('activity','outdoor','120')">외출</button>
+                        <button class="btn" onclick="selectOption('activity','sports','80')">스포츠</button>
+                        <button class="btn" onclick="selectOption('activity','swim','60')">수영</button>
+                        <button class="btn" onclick="selectOption('activity','beach','45')">해변</button>
+                    </div>
+                </div>
+
+                <button class="start-btn" onclick="startApply()">선크림 바르기 시작 →</button>
+            </div>
+
+            <!-- Apply Screen -->
+            <div id="applyScreen" class="screen hidden">
+                <div class="apply-header">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 18px; font-weight: 700; color: #FFD060;">손으로 얼굴을 터치하세요</div>
+                            <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 5px;">카메라가 손 움직임을 감지합니다</div>
+                        </div>
+                        <button class="start-btn" style="width: auto; padding: 10px 20px; margin: 0;" onclick="backToSetup()">← 뒤로</button>
+                    </div>
+                </div>
+
+                <div class="apply-content">
+                    <div class="video-section">
+                        <video id="video"></video>
+                        <div class="canvas-wrapper">
+                            <canvas id="canvas"></canvas>
+                            <canvas id="outputCanvas"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="info-section">
+                        <div class="info-box">
+                            <div class="info-title">📊 도포도</div>
+                            <div class="info-value" style="font-size: 24px;" id="coveragePercent">0%</div>
+                            <div class="coverage-bar">
+                                <div class="coverage-fill" id="coverageFill" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="info-box">
+                            <div class="info-title">🎯 도포 부위</div>
+                            <div class="info-row">
+                                <span class="info-label">이마</span>
+                                <span class="info-value" id="forehead">0%</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">양 뺨</span>
+                                <span class="info-value" id="cheeks">0%</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">코</span>
+                                <span class="info-value" id="nose">0%</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">턱</span>
+                                <span class="info-value" id="chin">0%</span>
+                            </div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="action-btn" onclick="resetApply()">🔄 초기화</button>
+                            <button class="action-btn finish" onclick="finishApply()">✓ 완료</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Timer Screen -->
+            <div id="timerScreen" class="screen hidden">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <div style="font-size: 18px; font-weight: 700; color: #FFD060;">⏱️ 타이머</div>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 5px;" id="timerDate">-</div>
+                    </div>
+                    <button class="start-btn" style="width: auto; padding: 10px 20px; margin: 0;" onclick="backToSetup()">설정 변경</button>
+                </div>
+
+                <div class="timer-box">
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.6);">남은 시간</div>
+                    <div class="timer-value" id="timerValue">00:00</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.7);" id="timerStatus">-</div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="card-label">도포 시각</div>
+                        <div class="card-value" id="appliedTime">-</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="card-label">다음 도포</div>
+                        <div class="card-value" id="nextTime">-</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="card-label">도포도</div>
+                        <div class="card-value" id="timerCoverage">-</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="card-label">자외선</div>
+                        <div class="card-value" id="timerUV">-</div>
+                    </div>
+                </div>
+
+                <div class="status-box">
+                    <div class="guide-title">🧴 올바른 사용법</div>
+                    1. 팔 길이 크기(1.25ml) 사용<br>
+                    2. 얼굴 5곳에 점으로 놓기<br>
+                    3. 안쪽에서 바깥쪽으로 펴 바르기<br>
+                    4. 15분 후 외출<br>
+                    5. 활동 중 권장 시간마다 재도포
+                </div>
+
+                <button class="start-btn" onclick="goToReapply()">☀ 재도포 시작</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let state = {
+            skin: 'oily',
+            activity: 'outdoor',
+            mins: 120,
+            appliedAt: null,
+            coverage: 0,
+            uvIndex: 6,
+            hands: null,
+            faceMesh: null
+        };
+
+        const CLEANSE_GUIDES = {
+            oily: `클렌징오일 → 미온수 헹굼 → 워터클렌저 → 찬물마무리`,
+            dry: `크림클렌저 → 천천히 헹굼 → 워터클렌저 → 찬바람드라이`,
+            sensitive: `약산성클렌저 → 부드러운터치 → 미온수헹굼 → 톡톡두드려말리기`,
+            combo: `부위별제품 → T존오일 → 이마/볼크림 → 미온수헹굼`
+        };
+
+        function selectOption(type, val, mins) {
+            document.querySelectorAll(`button[onclick*="selectOption('${type}"]`).forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            state[type] = val;
+            if (mins) state.mins = parseInt(mins);
+        }
+
+        function backToSetup() {
+            document.getElementById('setupScreen').classList.remove('hidden');
+            document.getElementById('applyScreen').classList.add('hidden');
+            document.getElementById('timerScreen').classList.add('hidden');
+        }
+
+        async function startApply() {
+            document.getElementById('setupScreen').classList.add('hidden');
+            document.getElementById('applyScreen').classList.remove('hidden');
+
+            await initializeCamera();
+            initializeHandTracking();
+        }
+
+        async function initializeCamera() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: 640, height: 480, facingMode: 'user' }
+            });
+
+            video.srcObject = stream;
+            video.onloadedmetadata = () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                video.play();
+            };
+        }
+
+        function initializeHandTracking() {
+            const Hands = window.Hands;
+            state.hands = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            state.hands.setOptions({
+                maxNumHands: 2,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            state.hands.onResults(onHandsResults);
+
+            const video = document.getElementById('video');
+            const camera = new Camera(video, {
+                onFrame: async () => {
+                    await state.hands.send({ image: video });
+                },
+                width: 640,
+                height: 480
+            });
+
+            camera.start();
+        }
+
+        function onHandsResults(results) {
+            const canvas = document.getElementById('outputCanvas');
+            const ctx = canvas.getContext('2d');
+            const video = document.getElementById('video');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            ctx.drawImage(video, 0, 0);
+
+            if (results.multiHandLandmarks) {
+                results.multiHandLandmarks.forEach(landmarks => {
+                    // 손가락 팁 감지 (INDEX_FINGER_TIP = 8)
+                    const indexTip = landmarks[8];
+                    const x = indexTip.x * canvas.width;
+                    const y = indexTip.y * canvas.height;
+
+                    // 손이 화면 내 얼굴 영역에 있으면 도포
+                    if (isInFaceArea(x, y)) {
+                        // 터치한 부분 칠하기
+                        ctx.fillStyle = 'rgba(255, 208, 96, 0.5)';
+                        ctx.beginPath();
+                        ctx.arc(x, y, 25, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // 도포도 증가
+                        state.coverage = Math.min(100, state.coverage + 0.5);
+                        updateCoverageDisplay();
+                    }
+                });
+            }
+        }
+
+        function isInFaceArea(x, y) {
+            // 얼굴 영역 감지 (화면의 중앙 상단 ~ 중앙)
+            const w = document.getElementById('canvas').width;
+            const h = document.getElementById('canvas').height;
+
+            return x > w * 0.2 && x < w * 0.8 && y > h * 0.1 && y < h * 0.7;
+        }
+
+        function updateCoverageDisplay() {
+            const percent = Math.round(state.coverage);
+            document.getElementById('coveragePercent').textContent = percent + '%';
+            document.getElementById('coverageFill').style.width = percent + '%';
+        }
+
+        function resetApply() {
+            state.coverage = 0;
+            updateCoverageDisplay();
+            const canvas = document.getElementById('outputCanvas');
+            canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function finishApply() {
+            state.appliedAt = new Date();
+            document.getElementById('applyScreen').classList.add('hidden');
+            document.getElementById('timerScreen').classList.remove('hidden');
+            initializeTimer();
+            getUVIndex();
+        }
+
+        function initializeTimer() {
+            document.getElementById('timerDate').textContent = new Date().toLocaleDateString('ko-KR');
+            document.getElementById('timerCoverage').textContent = Math.round(state.coverage) + '%';
+            updateTimer();
+            setInterval(updateTimer, 10000);
+        }
+
+        function updateTimer() {
+            const now = new Date();
+            const elapsed = Math.floor((now - state.appliedAt) / 60000);
+            const remain = Math.max(0, state.mins - elapsed);
+
+            const h = Math.floor(remain / 60);
+            const m = remain % 60;
+            document.getElementById('timerValue').textContent =
+                String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+
+            document.getElementById('appliedTime').textContent =
+                state.appliedAt.toLocaleTimeString('ko-KR').slice(0, 5);
+            document.getElementById('nextTime').textContent =
+                new Date(state.appliedAt.getTime() + state.mins * 60000).toLocaleTimeString('ko-KR').slice(0, 5);
+
+            if (remain === 0) {
+                document.getElementById('timerStatus').textContent = '⚠ 지금 재도포하세요!';
+                document.getElementById('timerValue').style.color = '#ef4444';
+            } else if (remain <= 20) {
+                document.getElementById('timerStatus').textContent = '⏰ 재도포 임박';
+                document.getElementById('timerValue').style.color = '#f59e0b';
+            } else {
+                document.getElementById('timerStatus').textContent = '✓ 유지중';
+                document.getElementById('timerValue').style.color = '#FFD060';
+            }
+        }
+
+        function getUVIndex() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        state.uvIndex = Math.round(Math.abs(pos.coords.latitude) / 10) + 4;
+                        document.getElementById('timerUV').textContent = state.uvIndex;
+                    },
+                    () => {
+                        state.uvIndex = 6;
+                        document.getElementById('timerUV').textContent = '6';
+                    }
+                );
+            }
+        }
+
+        function goToReapply() {
+            state.appliedAt = new Date();
+            state.coverage = 0;
+            updateTimer();
+            updateCoverageDisplay();
+        }
+    </script>
+</body>
+</html>

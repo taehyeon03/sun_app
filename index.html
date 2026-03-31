@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>☀ SUNGARD</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f1923 0%, #1a3060 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .title { font-size: 36px; font-weight: 900; color: #FFD060; margin-bottom: 10px; }
+        .subtitle { font-size: 14px; color: rgba(255,255,255,0.6); }
+
+        .screen { display: none; }
+        .screen.active { display: block; }
+
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+        .btn { padding: 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 12px; }
+        .btn.active { background: #FFD060; color: #0f1923; font-weight: 600; }
+
+        .label { font-size: 12px; font-weight: 600; color: #fff; margin-bottom: 10px; display: block; }
+        .start-btn { width: 100%; padding: 14px; background: #FFD060; border: none; border-radius: 8px; color: #0f1923; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 20px; }
+
+        canvas { max-width: 300px; margin: 20px auto; display: block; cursor: crosshair; background: rgba(255,255,255,0.05); border-radius: 8px; }
+
+        .timer-box { background: rgba(255,208,96,0.15); border: 1px solid rgba(255,208,96,0.3); border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 20px; }
+        .timer-value { font-size: 48px; font-weight: 900; color: #FFD060; font-family: 'Courier New', monospace; }
+
+        .info-box { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; margin-bottom: 12px; font-size: 12px; }
+        .info-row { display: flex; justify-content: space-between; }
+        .info-label { color: rgba(255,255,255,0.5); }
+        .info-value { color: #fff; font-weight: 600; }
+
+        .uv-box { background: rgba(255,100,100,0.15); border: 1px solid rgba(255,100,100,0.3); border-radius: 8px; padding: 16px; text-align: center; margin-bottom: 20px; }
+        .uv-value { font-size: 32px; font-weight: 900; color: #ff6464; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Setup -->
+        <div id="setup" class="screen active">
+            <div class="header">
+                <div class="title">☀ SUNGARD</div>
+                <div class="subtitle">선크림 타이머</div>
+            </div>
+
+            <label class="label">피부 타입</label>
+            <div class="btn-group">
+                <button class="btn active" onclick="select('skin','oily')">지성</button>
+                <button class="btn" onclick="select('skin','dry')">건성</button>
+                <button class="btn" onclick="select('skin','sensitive')">민감성</button>
+                <button class="btn" onclick="select('skin','combo')">복합성</button>
+            </div>
+
+            <label class="label">활동 유형</label>
+            <div class="btn-group">
+                <button class="btn active" onclick="select('activity','outdoor','120')">외출</button>
+                <button class="btn" onclick="select('activity','sports','80')">스포츠</button>
+                <button class="btn" onclick="select('activity','swim','60')">수영</button>
+                <button class="btn" onclick="select('activity','beach','45')">해변</button>
+            </div>
+
+            <button class="start-btn" onclick="goToFace()">다음 →</button>
+        </div>
+
+        <!-- Face -->
+        <div id="face" class="screen">
+            <div class="header">
+                <div class="title" style="font-size: 28px; margin-bottom: 5px;">☀ SUNGARD</div>
+                <div class="subtitle">얼굴 도포도</div>
+            </div>
+
+            <canvas id="canvas" width="300" height="360"></canvas>
+
+            <div style="text-align: center; font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 20px;">
+                <div>도포된 영역을 클릭하세요</div>
+                <div style="margin-top: 8px;"><strong id="coverage">0</strong>% 도포됨</div>
+            </div>
+
+            <div style="background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3); border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 12px;">
+                <div style="color: #60a5fa; font-weight: 600; margin-bottom: 8px;">🎯 추천 제품</div>
+                <div id="recs" style="color: rgba(255,255,255,0.7); line-height: 1.8;"></div>
+            </div>
+
+            <button class="start-btn" onclick="goToHome()">시작 →</button>
+        </div>
+
+        <!-- Home -->
+        <div id="home" class="screen">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <div>
+                    <div class="title" style="font-size: 28px; margin-bottom: 5px;">☀ SUNGARD</div>
+                    <div class="subtitle" id="date"></div>
+                </div>
+                <button style="padding: 8px 12px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 11px;" onclick="goToSetup()">설정</button>
+            </div>
+
+            <div class="uv-box">
+                <div class="uv-value" id="uv">--</div>
+                <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 8px;">자외선 지수</div>
+            </div>
+
+            <div class="timer-box">
+                <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 10px;">남은 시간</div>
+                <div class="timer-value" id="timer">--:--</div>
+                <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 10px;" id="status">-</div>
+            </div>
+
+            <div class="info-box">
+                <div class="info-row">
+                    <span class="info-label">도포 시각</span>
+                    <span class="info-value" id="applied">-</span>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <div class="info-row">
+                    <span class="info-label">다음 도포</span>
+                    <span class="info-value" id="next">-</span>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <div class="info-row">
+                    <span class="info-label">도포도</span>
+                    <span class="info-value" id="cov">-</span>
+                </div>
+            </div>
+
+            <button class="start-btn" onclick="reapply()">☀ 지금 발랐어요</button>
+        </div>
+    </div>
+
+    <script>
+        let config = {
+            skin: 'oily',
+            activity: 'outdoor',
+            mins: 120,
+            applied: null,
+            coverage: 0
+        };
+
+        const RECS = {
+            oily: '1. Aesop 제니온<br>2. COSRX 알본<br>3. 닥터자르트 컬러',
+            dry: '1. 라로슈 포제<br>2. 에스티로더<br>3. 클리닉 SPF50',
+            sensitive: '1. 센텔라 칼밍<br>2. 퓨어케어<br>3. 라라로젠',
+            combo: '1. 토너 선<br>2. 비욘드 벨벳<br>3. 이니스프리'
+        };
+
+        function select(type, val, mins) {
+            document.querySelectorAll(`button[onclick*="select('${type}"]`).forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            config[type] = val;
+            if (mins) config.mins = parseInt(mins);
+        }
+
+        function goToFace() {
+            document.getElementById('setup').classList.remove('active');
+            document.getElementById('face').classList.add('active');
+            drawFace();
+            document.getElementById('recs').innerHTML = RECS[config.skin];
+        }
+
+        function drawFace() {
+            const c = document.getElementById('canvas');
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#555';
+            ctx.beginPath();
+            ctx.ellipse(150, 120, 80, 100, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(30, 100, 20, 60);
+            ctx.fillRect(250, 100, 20, 60);
+            ctx.fillRect(120, 240, 60, 40);
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('canvas').addEventListener('click', (e) => {
+                const rect = e.target.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const ctx = e.target.getContext('2d');
+                ctx.fillStyle = '#FFD060';
+                ctx.beginPath();
+                ctx.arc(x, y, 20, 0, Math.PI * 2);
+                ctx.fill();
+                config.coverage = Math.min(100, config.coverage + 10);
+                document.getElementById('coverage').textContent = config.coverage;
+            });
+        });
+
+        function goToHome() {
+            document.getElementById('face').classList.remove('active');
+            document.getElementById('home').classList.add('active');
+            config.applied = new Date();
+            updateHome();
+            getUV();
+            setInterval(updateHome, 30000);
+        }
+
+        function goToSetup() {
+            document.getElementById('home').classList.remove('active');
+            document.getElementById('setup').classList.add('active');
+        }
+
+        function updateHome() {
+            const now = new Date();
+            const elapsed = Math.floor((now - config.applied) / 60000);
+            const remain = Math.max(0, config.mins - elapsed);
+
+            document.getElementById('date').textContent = now.toLocaleDateString('ko-KR');
+            document.getElementById('timer').textContent = String(Math.floor(remain/60)).padStart(2,'0') + ':' + String(remain%60).padStart(2,'0');
+            document.getElementById('applied').textContent = config.applied.toLocaleTimeString('ko-KR').slice(0,5);
+            document.getElementById('next').textContent = new Date(config.applied.getTime() + config.mins*60000).toLocaleTimeString('ko-KR').slice(0,5);
+            document.getElementById('cov').textContent = config.coverage + '%';
+
+            if (remain === 0) {
+                document.getElementById('status').textContent = '⚠ 지금 재도포하세요!';
+                document.getElementById('timer').style.color = '#ef4444';
+            } else if (remain <= 20) {
+                document.getElementById('status').textContent = '⏰ 재도포 임박';
+                document.getElementById('timer').style.color = '#f59e0b';
+            } else {
+                document.getElementById('status').textContent = '✓ 유지중';
+                document.getElementById('timer').style.color = '#FFD060';
+            }
+        }
+
+        function getUV() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const uv = Math.round(Math.abs(pos.coords.latitude) / 10) + 4;
+                        document.getElementById('uv').textContent = uv;
+                    },
+                    () => {
+                        document.getElementById('uv').textContent = '6';
+                    }
+                );
+            }
+        }
+
+        function reapply() {
+            config.applied = new Date();
+            config.coverage = Math.round(config.coverage * 0.3);
+            updateHome();
+            document.getElementById('coverage').textContent = config.coverage;
+            alert('재도포 완료! 타이머 리셋');
+        }
+    </script>
+</body>
+</html>
