@@ -11,12 +11,20 @@ import { SkinTypeResult } from "./skintype";
 import {
   formatTime, formatDuration,
   REAPPLY_RULES, getAmountDescription,
+  calcReapplyMinutes,
+  ProductType, SpfLevel,
 } from "./sunscreen";
 import {
   requestNotificationPermission,
   scheduleReapplyNotification,
   cancelAllNotifications,
 } from "./notifications";
+
+interface HistoryEntry {
+  time: Date;
+  productType: ProductType;
+  spfLabel: string;
+}
 
 interface Props {
   config: SunscreenConfig;
@@ -82,13 +90,19 @@ function CircularTimer({ remainMins, totalMins, color }: {
 // ── 메인 화면 ─────────────────────────────────────────────────────────────────
 export default function HomeScreen({ config, skinResult, onReset }: Props) {
   const [now, setNow] = useState(new Date());
+  const [activeConfig, setActiveConfig] = useState<SunscreenConfig>(config);
   const [appliedAt, setAppliedAt] = useState(config.appliedAt);
-  const [history, setHistory] = useState<Date[]>([config.appliedAt]);
+  const [history, setHistory] = useState<HistoryEntry[]>([{
+    time: config.appliedAt,
+    productType: config.productType,
+    spfLabel: REAPPLY_RULES[config.productType][config.spfLevel].label,
+  }]);
   const [notifGranted, setNotifGranted] = useState(false);
   const [showFaceApply, setShowFaceApply] = useState(false);
+  const [showReapplyModal, setShowReapplyModal] = useState(false);
 
-  const rule = REAPPLY_RULES[config.productType][config.spfLevel];
-  const amountDesc = getAmountDescription(config.productType, config.amount);
+  const rule = REAPPLY_RULES[activeConfig.productType][activeConfig.spfLevel];
+  const amountDesc = getAmountDescription(activeConfig.productType, activeConfig.amount);
 
   // 1초 단위 갱신
   useEffect(() => {
@@ -113,8 +127,8 @@ export default function HomeScreen({ config, skinResult, onReset }: Props) {
   }, []);
 
   const elapsedMins = Math.floor((now.getTime() - appliedAt.getTime()) / 60000);
-  const remainMins = Math.max(0, config.reapplyMins - elapsedMins);
-  const nextApplyTime = new Date(appliedAt.getTime() + config.reapplyMins * 60000);
+  const remainMins = Math.max(0, activeConfig.reapplyMins - elapsedMins);
+  const nextApplyTime = new Date(appliedAt.getTime() + activeConfig.reapplyMins * 60000);
 
   const overdue = remainMins === 0;
   const urgent = remainMins > 0 && remainMins <= 20;
@@ -126,16 +140,24 @@ export default function HomeScreen({ config, skinResult, onReset }: Props) {
     ? "⏰ 재도포 임박"
     : "✓ 보호 중";
 
-  const handleReapply = useCallback(async () => {
+  const handleReapply = useCallback(async (newConfig?: SunscreenConfig) => {
+    const cfg = newConfig ?? activeConfig;
+    const r = REAPPLY_RULES[cfg.productType][cfg.spfLevel];
+    const desc = getAmountDescription(cfg.productType, cfg.amount);
     const newApplied = new Date();
+    if (newConfig) setActiveConfig(newConfig);
     setAppliedAt(newApplied);
-    setHistory((prev) => [newApplied, ...prev.slice(0, 4)]);
+    setHistory((prev) => [{
+      time: newApplied,
+      productType: cfg.productType,
+      spfLabel: r.label,
+    }, ...prev.slice(0, 4)]);
     if (notifGranted) {
-      await scheduleReapplyNotification(config.reapplyMins, rule.label, amountDesc);
+      await scheduleReapplyNotification(cfg.reapplyMins, r.label, desc);
     }
-  }, [notifGranted, config.reapplyMins, rule.label, amountDesc]);
+  }, [notifGranted, activeConfig]);
 
-  const productLabel = { cream: "크림", stick: "스틱", spray: "스프레이" }[config.productType];
+  const productLabel = { cream: "크림", stick: "스틱", spray: "스프레이" }[activeConfig.productType];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -144,6 +166,27 @@ export default function HomeScreen({ config, skinResult, onReset }: Props) {
       {/* 얼굴 도포 모달 */}
       <Modal visible={showFaceApply} animationType="slide" onRequestClose={() => setShowFaceApply(false)}>
         <FaceApplyScreen onClose={() => setShowFaceApply(false)} />
+      </Modal>
+
+      {/* 재도포 확인 모달 */}
+      <Modal
+        visible={showReapplyModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowReapplyModal(false)}
+      >
+        <ReapplyModal
+          currentConfig={activeConfig}
+          onSame={() => {
+            setShowReapplyModal(false);
+            handleReapply();
+          }}
+          onDifferent={(newCfg) => {
+            setShowReapplyModal(false);
+            handleReapply(newCfg);
+          }}
+          onCancel={() => setShowReapplyModal(false)}
+        />
       </Modal>
 
       <ScrollView contentContainerStyle={styles.container}>
@@ -169,7 +212,7 @@ export default function HomeScreen({ config, skinResult, onReset }: Props) {
         <View style={styles.arcWrapper}>
           <CircularTimer
             remainMins={remainMins}
-            totalMins={config.reapplyMins}
+            totalMins={activeConfig.reapplyMins}
             color={statusColor}
           />
           <View style={styles.arcOverlay}>
@@ -198,15 +241,21 @@ export default function HomeScreen({ config, skinResult, onReset }: Props) {
         {history.length > 0 && (
           <View style={styles.historyCard}>
             <Text style={styles.historyTitle}>도포 기록</Text>
-            {history.map((t, i) => (
-              <View key={i} style={styles.historyRow}>
-                <View style={[styles.historyDot, i === 0 && styles.historyDotActive]} />
-                <Text style={styles.historyTime}>{formatTime(t)}</Text>
-                <Text style={styles.historyBadge}>
-                  {i === 0 ? "최근" : `${i}회 전`}
-                </Text>
-              </View>
-            ))}
+            {history.map((entry, i) => {
+              const pLabel = { cream: "크림", stick: "스틱", spray: "스프레이" }[entry.productType];
+              return (
+                <View key={i} style={styles.historyRow}>
+                  <View style={[styles.historyDot, i === 0 && styles.historyDotActive]} />
+                  <View style={styles.historyInfo}>
+                    <Text style={styles.historyTime}>{formatTime(entry.time)}</Text>
+                    <Text style={styles.historyProduct}>{pLabel} · {entry.spfLabel}</Text>
+                  </View>
+                  <Text style={styles.historyBadge}>
+                    {i === 0 ? "최근" : `${i}회 전`}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -220,7 +269,7 @@ export default function HomeScreen({ config, skinResult, onReset }: Props) {
         )}
 
         {/* 500원 동전 도포량 가이드 */}
-        <AmountGuide productType={config.productType} amount={rule.amount} />
+        <AmountGuide productType={activeConfig.productType} amount={rule.amount} />
 
         {/* 얼굴 도포 체크 버튼 */}
         <TouchableOpacity onPress={() => setShowFaceApply(true)} style={styles.faceBtn} activeOpacity={0.85}>
@@ -233,7 +282,7 @@ export default function HomeScreen({ config, skinResult, onReset }: Props) {
         </TouchableOpacity>
 
         {/* 재도포 버튼 */}
-        <TouchableOpacity onPress={handleReapply} style={styles.reapplyBtn} activeOpacity={0.85}>
+        <TouchableOpacity onPress={() => setShowReapplyModal(true)} style={styles.reapplyBtn} activeOpacity={0.85}>
           <Text style={styles.reapplyBtnText}>☀ 지금 발랐어요</Text>
         </TouchableOpacity>
 
@@ -375,7 +424,9 @@ const styles = StyleSheet.create({
   historyDotActive: {
     backgroundColor: "#FFD060",
   },
-  historyTime: { fontSize: 14, color: "rgba(255,255,255,0.8)", flex: 1 },
+  historyInfo: { flex: 1 },
+  historyTime: { fontSize: 14, color: "rgba(255,255,255,0.8)" },
+  historyProduct: { fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 1 },
   historyBadge: { fontSize: 12, color: "rgba(255,255,255,0.35)" },
 
   // 재도포 버튼
@@ -448,4 +499,224 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 4,
   },
+});
+
+// ── 재도포 확인 모달 ─────────────────────────────────────────────────────────
+interface ReapplyModalProps {
+  currentConfig: SunscreenConfig;
+  onSame: () => void;
+  onDifferent: (newConfig: SunscreenConfig) => void;
+  onCancel: () => void;
+}
+
+function ReapplyModal({ currentConfig, onSame, onDifferent, onCancel }: ReapplyModalProps) {
+  const [step, setStep] = useState<"choose" | "configure">("choose");
+  const [productType, setProductType] = useState<ProductType>(currentConfig.productType);
+  const [spfLevel, setSpfLevel] = useState<SpfLevel>(currentConfig.spfLevel);
+  const [sweating, setSweating] = useState(currentConfig.sweating);
+
+  const handleConfirmDifferent = () => {
+    const reapplyMins = calcReapplyMinutes(productType, spfLevel, currentConfig.uvLevel, sweating);
+    const amount = REAPPLY_RULES[productType][spfLevel].amount;
+    onDifferent({
+      ...currentConfig,
+      productType,
+      spfLevel,
+      sweating,
+      reapplyMins,
+      amount,
+      appliedAt: new Date(),
+    });
+  };
+
+  return (
+    <View style={ms.backdrop}>
+      <View style={ms.sheet}>
+        {step === "choose" ? (
+          <>
+            <Text style={ms.title}>재도포 확인</Text>
+            <Text style={ms.subtitle}>어떤 선크림으로 발랐나요?</Text>
+
+            <TouchableOpacity onPress={onSame} style={ms.optionBtn} activeOpacity={0.85}>
+              <View style={ms.optionIcon}><Text style={ms.optionEmoji}>✓</Text></View>
+              <View style={ms.optionText}>
+                <Text style={ms.optionTitle}>같은 제품으로 발랐어요</Text>
+                <Text style={ms.optionSub}>
+                  {({ cream: "크림", stick: "스틱", spray: "스프레이" } as const)[currentConfig.productType]} ·{" "}
+                  {REAPPLY_RULES[currentConfig.productType][currentConfig.spfLevel].label}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={() => setStep("configure")} style={[ms.optionBtn, ms.optionBtnAlt]} activeOpacity={0.85}>
+              <View style={[ms.optionIcon, ms.optionIconAlt]}><Text style={ms.optionEmoji}>↕</Text></View>
+              <View style={ms.optionText}>
+                <Text style={ms.optionTitle}>다른 제품으로 바꿨어요</Text>
+                <Text style={ms.optionSub}>새 제품의 정보를 입력해 타이머 재계산</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={onCancel} style={ms.cancelBtn}>
+              <Text style={ms.cancelText}>취소</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity onPress={() => setStep("choose")} style={ms.backBtn}>
+              <Text style={ms.backText}>← 돌아가기</Text>
+            </TouchableOpacity>
+            <Text style={ms.title}>새 제품 설정</Text>
+
+            <Text style={ms.sectionLabel}>제품 형태</Text>
+            <View style={ms.btnRow}>
+              {([
+                { id: "cream" as ProductType, label: "크림" },
+                { id: "stick" as ProductType, label: "스틱" },
+                { id: "spray" as ProductType, label: "스프레이" },
+              ] as const).map(p => (
+                <TouchableOpacity
+                  key={p.id}
+                  onPress={() => setProductType(p.id)}
+                  style={[ms.segBtn, productType === p.id && ms.segBtnActive]}
+                >
+                  <Text style={[ms.segBtnText, productType === p.id && ms.segBtnTextActive]}>{p.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={ms.sectionLabel}>SPF 등급</Text>
+            <View style={ms.btnRow}>
+              {([
+                { id: "low" as SpfLevel, label: "SPF 15–29" },
+                { id: "medium" as SpfLevel, label: "SPF 30–49" },
+                { id: "high" as SpfLevel, label: "SPF 50–99" },
+                { id: "ultra" as SpfLevel, label: "SPF 100+" },
+              ] as const).map(s => (
+                <TouchableOpacity
+                  key={s.id}
+                  onPress={() => setSpfLevel(s.id)}
+                  style={[ms.segBtn, spfLevel === s.id && ms.segBtnActive]}
+                >
+                  <Text style={[ms.segBtnText, spfLevel === s.id && ms.segBtnTextActive]}>{s.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              onPress={() => setSweating(!sweating)}
+              style={[ms.checkBtn, sweating && ms.checkBtnActive]}
+            >
+              <Text style={ms.checkLabel}>{sweating ? "✓" : "○"} 땀 많은 활동 (수영 / 운동)</Text>
+            </TouchableOpacity>
+
+            <View style={ms.previewRow}>
+              <Text style={ms.previewLabel}>재계산 주기</Text>
+              <Text style={ms.previewValue}>
+                {formatDuration(calcReapplyMinutes(productType, spfLevel, currentConfig.uvLevel, sweating))}
+              </Text>
+            </View>
+
+            <TouchableOpacity onPress={handleConfirmDifferent} style={ms.confirmBtn} activeOpacity={0.85}>
+              <Text style={ms.confirmText}>이 제품으로 타이머 시작</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const ms = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#141e28",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  title: { fontSize: 18, fontWeight: "800", color: "#fff", marginBottom: 4 },
+  subtitle: { fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 20 },
+
+  optionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,208,96,0.1)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,208,96,0.3)",
+    padding: 14,
+    gap: 12,
+    marginBottom: 10,
+  },
+  optionBtnAlt: {
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  optionIcon: {
+    width: 36, height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,208,96,0.2)",
+    alignItems: "center", justifyContent: "center",
+  },
+  optionIconAlt: { backgroundColor: "rgba(255,255,255,0.1)" },
+  optionEmoji: { fontSize: 16 },
+  optionText: { flex: 1 },
+  optionTitle: { fontSize: 14, fontWeight: "700", color: "#fff", marginBottom: 2 },
+  optionSub: { fontSize: 12, color: "rgba(255,255,255,0.4)" },
+
+  cancelBtn: { alignItems: "center", marginTop: 8, padding: 10 },
+  cancelText: { fontSize: 14, color: "rgba(255,255,255,0.35)" },
+
+  backBtn: { marginBottom: 12 },
+  backText: { fontSize: 13, color: "#FFD060" },
+
+  sectionLabel: { fontSize: 12, fontWeight: "600", color: "rgba(255,255,255,0.45)", marginBottom: 8, marginTop: 16 },
+  btnRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  segBtn: {
+    paddingHorizontal: 12, paddingVertical: 8,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  segBtnActive: { backgroundColor: "#FFD060", borderColor: "#FFD060" },
+  segBtnText: { fontSize: 13, color: "rgba(255,255,255,0.55)" },
+  segBtnTextActive: { color: "#0f1923", fontWeight: "700" },
+
+  checkBtn: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  checkBtnActive: { backgroundColor: "#60a5fa", borderColor: "#60a5fa" },
+  checkLabel: { fontSize: 13, color: "rgba(255,255,255,0.65)" },
+
+  previewRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderRadius: 8,
+  },
+  previewLabel: { fontSize: 13, color: "rgba(255,255,255,0.45)" },
+  previewValue: { fontSize: 16, fontWeight: "800", color: "#FFD060" },
+
+  confirmBtn: {
+    marginTop: 16,
+    backgroundColor: "#FFD060",
+    borderRadius: 10,
+    padding: 15,
+    alignItems: "center",
+  },
+  confirmText: { fontSize: 15, fontWeight: "700", color: "#0f1923" },
 });
