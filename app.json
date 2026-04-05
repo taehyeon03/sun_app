@@ -62,6 +62,7 @@
         }
       ]
     ],
+    "newArchEnabled": true,
     "scheme": "sungard",
     "extra": {
       "eas": {
