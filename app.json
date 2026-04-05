@@ -3,7 +3,7 @@
     "name": "SUNGARD - 선크림 타이머",
     "slug": "sungard",
     "version": "1.0.0",
-    "sdkVersion": "51.0.0",
+    "sdkVersion": "54.0.0",
     "description": "논문 기반 선크림 재도포 알림 앱 - 여름철 자외선 차단 필수",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,10 +20,16 @@
       },
       "package": "com.sungard.sunscreentimer",
       "versionCode": 1,
+      "compileSdkVersion": 36,
+      "targetSdkVersion": 36,
+      "minSdkVersion": 23,
       "permissions": [
         "VIBRATE",
         "POST_NOTIFICATIONS",
-        "SCHEDULE_EXACT_ALARM"
+        "SCHEDULE_EXACT_ALARM",
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
       ],
       "intentFilters": [
         {
@@ -42,7 +48,19 @@
           "color": "#FFD060"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "선크림 도포 구역 확인을 위해 카메라를 사용합니다."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "현재 위치 기반 UV 지수 조회를 위해 위치 정보를 사용합니다."
+        }
+      ]
     ],
     "scheme": "sungard",
     "extra": {

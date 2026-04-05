@@ -90,14 +90,20 @@ export default function SplashScreen({ onEnter }: Props) {
     }
   }, [phase, progressPct, handX, progressAnim, sunOpacity, sunScale]);
 
+  // PanResponder는 mount 시 한 번만 생성되므로 콜백을 ref로 우회
+  const callbackRefs = useRef({ handleGestureStart, handleGestureMove, handleGestureEnd });
+  useEffect(() => {
+    callbackRefs.current = { handleGestureStart, handleGestureMove, handleGestureEnd };
+  }, [handleGestureStart, handleGestureMove, handleGestureEnd]);
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (e) => handleGestureStart(e.nativeEvent.pageX),
-      onPanResponderMove: (e) => handleGestureMove(e.nativeEvent.pageX),
-      onPanResponderRelease: handleGestureEnd,
-      onPanResponderTerminate: handleGestureEnd,
+      onPanResponderGrant: (e) => callbackRefs.current.handleGestureStart(e.nativeEvent.pageX),
+      onPanResponderMove: (e) => callbackRefs.current.handleGestureMove(e.nativeEvent.pageX),
+      onPanResponderRelease: () => callbackRefs.current.handleGestureEnd(),
+      onPanResponderTerminate: () => callbackRefs.current.handleGestureEnd(),
     })
   ).current;
 
@@ -180,7 +186,12 @@ export default function SplashScreen({ onEnter }: Props) {
             : `${Math.round(progressPct * 100)}% — 조금 더!`}
         </Text>
         {phase === "idle" && (
-          <Text style={styles.hint}>화면을 왼쪽에서 오른쪽으로 쓸어주세요</Text>
+          <>
+            <Text style={styles.hint}>화면을 왼쪽에서 오른쪽으로 쓸어주세요</Text>
+            <TouchableOpacity onPress={onEnter} style={styles.skipBtn}>
+              <Text style={styles.skipBtnText}>시작하기 →</Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
     </LinearGradient>
@@ -251,5 +262,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "rgba(255,255,255,0.35)",
     letterSpacing: 0.5,
+    marginBottom: 16,
+  },
+  skipBtn: {
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    backgroundColor: "#FFD060",
+    borderRadius: 24,
+    marginTop: 4,
+  },
+  skipBtnText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0f1923",
   },
 });

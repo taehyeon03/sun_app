@@ -1,30 +1,19 @@
-// App.tsx — SUNGARD 메인 엔트리 (MVP)
+// App.tsx — SUNGARD 메인 엔트리
 import React, { useState } from "react";
-import SetupScreen, { SunscreenConfig } from "./SetupScreen";
-import HomeScreen from "./HomeScreen";
+import SplashScreen from "./SplashScreen";
+import MainTabs from "./MainTabs";
 
-type Screen = "setup" | "home";
+type Screen = "splash" | "main";
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("setup");
-  const [config, setConfig] = useState<SunscreenConfig | null>(null);
+  const [screen, setScreen] = useState<Screen>("splash");
 
   return (
     <>
-      {screen === "setup" && (
-        <SetupScreen
-          onStart={(cfg) => {
-            setConfig(cfg);
-            setScreen("home");
-          }}
-        />
+      {screen === "splash" && (
+        <SplashScreen onEnter={() => setScreen("main")} />
       )}
-      {screen === "home" && config && (
-        <HomeScreen
-          config={config}
-          onReset={() => setScreen("setup")}
-        />
-      )}
+      {screen === "main" && <MainTabs />}
     </>
   );
 }
