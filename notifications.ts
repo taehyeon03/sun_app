@@ -86,6 +86,14 @@ export async function scheduleReapplyNotification(
 }
 
 export async function cancelAllNotifications(): Promise<void> {
-  await Notifications.cancelAllScheduledNotificationsAsync();
-  await Notifications.setBadgeCountAsync(0);
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch (e) {
+    // 무시
+  }
+  try {
+    await Notifications.setBadgeCountAsync(0);
+  } catch (e) {
+    // 무시
+  }
 }

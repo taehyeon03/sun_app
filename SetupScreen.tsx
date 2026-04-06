@@ -45,7 +45,9 @@ export default function SetupScreen({ initialAppliedAt, skinResult, onStart }: P
       setGpsResult(result);
       setUvLevel(result.uvLevel);
     } catch (e: any) {
-      setGpsError(e.message ?? "위치 정보를 가져올 수 없습니다");
+      const errorMsg = e?.message ?? "위치 정보를 가져올 수 없습니다";
+      setGpsError(errorMsg);
+      // 오류가 발생해도 앱은 계속 동작하도록 함
     } finally {
       setGpsLoading(false);
     }

@@ -113,16 +113,27 @@ export default function HomeScreen({ config, skinResult, onReset }: Props) {
   // 앱 진입 시 알림 권한 요청 + 초기 알림 스케줄
   useEffect(() => {
     let active = true;
-    requestNotificationPermission().then((granted) => {
-      if (!active) return;
-      setNotifGranted(granted);
-      if (granted) {
-        scheduleReapplyNotification(config.reapplyMins, rule.label, amountDesc);
+    const setupNotifications = async () => {
+      try {
+        const granted = await requestNotificationPermission();
+        if (!active) return;
+        setNotifGranted(granted);
+        if (granted) {
+          try {
+            await scheduleReapplyNotification(config.reapplyMins, rule.label, amountDesc);
+          } catch (e) {
+            // 알림 스케줄 실패 무시
+          }
+        }
+      } catch (e) {
+        // 권한 요청 실패 무시
+        if (active) setNotifGranted(false);
       }
-    });
+    };
+    setupNotifications();
     return () => {
       active = false;
-      cancelAllNotifications();
+      cancelAllNotifications().catch(() => {});
     };
   }, []);
 

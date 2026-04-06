@@ -35,54 +35,82 @@ export function uvLevelInfo(level: UvLevel): { label: string; description: strin
 
 /** GPS + OpenMeteo로 현재 UV 지수 조회 */
 export async function fetchCurrentUv(): Promise<UvResult> {
-  // 1. 위치 권한 요청
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== "granted") {
-    throw new Error("위치 권한이 필요합니다");
-  }
-
-  // 2. 현재 좌표 획득
-  const location = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.Balanced,
-  });
-  const { latitude, longitude } = location.coords;
-
-  // 3. OpenMeteo API — 현재 시간 UV 지수 조회 (무료, API 키 불필요)
-  const url =
-    `https://api.open-meteo.com/v1/forecast` +
-    `?latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
-    `&hourly=uv_index&forecast_days=1&timezone=auto`;
-
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("UV 데이터를 가져올 수 없습니다");
-
-  const data = await res.json();
-
-  // 현재 시각에 맞는 시간대 인덱스 찾기
-  const now = new Date();
-  const currentHour = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}T${String(now.getHours()).padStart(2, "0")}:00`;
-  const timeIndex = (data.hourly.time as string[]).findIndex((t) => t === currentHour);
-  const uvIndex = timeIndex >= 0
-    ? Math.round(data.hourly.uv_index[timeIndex] * 10) / 10
-    : Math.round(data.hourly.uv_index[Math.min(12, data.hourly.uv_index.length - 1)] * 10) / 10;
-
-  // 4. 역지오코딩으로 도시명 조회 (선택적)
-  let city: string | undefined;
   try {
-    const geo = await Location.reverseGeocodeAsync({ latitude, longitude });
-    city = geo[0]?.city ?? geo[0]?.district ?? undefined;
-  } catch {
-    // 도시명 조회 실패해도 UV 결과는 반환
+    // 1. 위치 권한 요청
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      throw new Error("위치 권한이 필요합니다");
+    }
+
+    // 2. 현재 좌표 획득
+    let location;
+    try {
+      location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+    } catch (e: any) {
+      throw new Error("위치 정보를 가져올 수 없습니다");
+    }
+
+    const { latitude, longitude } = location.coords;
+
+    // 3. OpenMeteo API — 현재 시간 UV 지수 조회 (무료, API 키 불필요)
+    const url =
+      `https://api.open-meteo.com/v1/forecast` +
+      `?latitude=${latitude.toFixed(4)}&longitude=${longitude.toFixed(4)}` +
+      `&hourly=uv_index&forecast_days=1&timezone=auto`;
+
+    let res;
+    try {
+      res = await fetch(url);
+    } catch (e: any) {
+      throw new Error("네트워크 오류: UV 데이터를 가져올 수 없습니다");
+    }
+
+    if (!res.ok) {
+      throw new Error("UV 데이터를 가져올 수 없습니다");
+    }
+
+    let data;
+    try {
+      data = await res.json();
+    } catch {
+      throw new Error("응답 데이터를 파싱할 수 없습니다");
+    }
+
+    // 데이터 유효성 검증
+    if (!data?.hourly?.uv_index || !Array.isArray(data.hourly.uv_index)) {
+      throw new Error("유효하지 않은 UV 데이터입니다");
+    }
+
+    // 현재 시각에 맞는 시간대 인덱스 찾기
+    const now = new Date();
+    const currentHour = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}T${String(now.getHours()).padStart(2, "0")}:00`;
+    const timeIndex = (data.hourly.time as string[]).findIndex((t) => t === currentHour);
+    const uvIndex = timeIndex >= 0
+      ? Math.round(data.hourly.uv_index[timeIndex] * 10) / 10
+      : Math.round(data.hourly.uv_index[Math.min(12, data.hourly.uv_index.length - 1)] * 10) / 10;
+
+    // 4. 역지오코딩으로 도시명 조회 (선택적)
+    let city: string | undefined;
+    try {
+      const geo = await Location.reverseGeocodeAsync({ latitude, longitude });
+      city = geo[0]?.city ?? geo[0]?.district ?? undefined;
+    } catch {
+      // 도시명 조회 실패해도 UV 결과는 반환
+    }
+
+    const uvLevel = uvIndexToLevel(uvIndex);
+    const info = uvLevelInfo(uvLevel);
+
+    return {
+      uvIndex,
+      uvLevel,
+      label: info.label,
+      description: info.description,
+      city,
+    };
+  } catch (e: any) {
+    throw new Error(e?.message ?? "UV 데이터를 가져올 수 없습니다");
   }
-
-  const uvLevel = uvIndexToLevel(uvIndex);
-  const info = uvLevelInfo(uvLevel);
-
-  return {
-    uvIndex,
-    uvLevel,
-    label: info.label,
-    description: info.description,
-    city,
-  };
 }

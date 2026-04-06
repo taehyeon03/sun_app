@@ -43,42 +43,52 @@ async function getZoneBrightness(
   photoW: number,
   photoH: number,
 ): Promise<number> {
-  const scaleX = photoW / SW;
-  const scaleY = photoH / SH;
+  try {
+    if (!photoUri || photoW <= 0 || photoH <= 0) return 128;
 
-  // 전면 카메라는 좌우 반전 — cx를 미러링
-  const mirroredCx = 1 - zone.cx;
-  const originX = Math.max(0, Math.round((mirroredCx * SW - zone.rx) * scaleX));
-  const originY = Math.max(0, Math.round((zone.cy * SH - zone.ry) * scaleY));
-  const w = Math.max(4, Math.min(Math.round(zone.rx * 2 * scaleX), photoW - originX));
-  const h = Math.max(4, Math.min(Math.round(zone.ry * 2 * scaleY), photoH - originY));
+    const scaleX = photoW / SW;
+    const scaleY = photoH / SH;
 
-  const result = await ImageManipulator.manipulateAsync(
-    photoUri,
-    [
-      { crop: { originX, originY, width: w, height: h } },
-      { resize: { width: 6, height: 6 } },
-    ],
-    { base64: true, format: ImageManipulator.SaveFormat.PNG },
-  );
+    // 전면 카메라는 좌우 반전 — cx를 미러링
+    const mirroredCx = 1 - zone.cx;
+    const originX = Math.max(0, Math.round((mirroredCx * SW - zone.rx) * scaleX));
+    const originY = Math.max(0, Math.round((zone.cy * SH - zone.ry) * scaleY));
+    const w = Math.max(4, Math.min(Math.round(zone.rx * 2 * scaleX), photoW - originX));
+    const h = Math.max(4, Math.min(Math.round(zone.ry * 2 * scaleY), photoH - originY));
 
-  if (!result.base64) return 128;
+    if (w <= 0 || h <= 0) return 128;
 
-  // base64 → Uint8Array → PNG 디코딩 → 평균 휘도
-  const binary = atob(result.base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const result = await ImageManipulator.manipulateAsync(
+      photoUri,
+      [
+        { crop: { originX, originY, width: w, height: h } },
+        { resize: { width: 6, height: 6 } },
+      ],
+      { base64: true, format: ImageManipulator.SaveFormat.PNG },
+    );
 
-  const img = decodePng(bytes);
-  const { data, width, height, channels } = img;
-  let sum = 0;
-  const count = width * height;
-  for (let i = 0; i < count; i++) {
-    const o = i * channels;
-    // ITU-R BT.601 휘도 공식
-    sum += data[o] * 0.299 + data[o + 1] * 0.587 + data[o + 2] * 0.114;
+    if (!result?.base64) return 128;
+
+    // base64 → Uint8Array → PNG 디코딩 → 평균 휘도
+    const binary = atob(result.base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+    const img = decodePng(bytes);
+    const { data, width, height, channels } = img;
+    if (!data || width <= 0 || height <= 0 || channels <= 0) return 128;
+
+    let sum = 0;
+    const count = width * height;
+    for (let i = 0; i < count; i++) {
+      const o = i * channels;
+      // ITU-R BT.601 휘도 공식
+      sum += data[o] * 0.299 + data[o + 1] * 0.587 + data[o + 2] * 0.114;
+    }
+    return sum / count;
+  } catch {
+    return 128;
   }
-  return sum / count;
 }
 
 export default function FaceApplyScreen({ onClose }: Props) {
@@ -94,8 +104,17 @@ export default function FaceApplyScreen({ onClose }: Props) {
   const isProcessingRef = useRef(false);
 
   useEffect(() => {
-    if (!permission?.granted) requestPermission();
-  }, []);
+    const checkPermission = async () => {
+      if (!permission) {
+        try {
+          await requestPermission();
+        } catch (e) {
+          // 권한 요청 오류 무시
+        }
+      }
+    };
+    checkPermission();
+  }, [permission, requestPermission]);
 
   const captureAndAnalyze = useCallback(async () => {
     if (isProcessingRef.current || !cameraRef.current) return;
@@ -104,6 +123,12 @@ export default function FaceApplyScreen({ onClose }: Props) {
 
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.15 });
+      if (!photo) {
+        isProcessingRef.current = false;
+        setScanning(false);
+        return;
+      }
+
       const { width: pw, height: ph, uri } = photo;
 
       // 모든 구역 밝기 측정 (순차 처리)
@@ -154,7 +179,7 @@ export default function FaceApplyScreen({ onClose }: Props) {
       setScanning(false);
       isProcessingRef.current = false;
     }
-  }, []);
+  }, [baselineReady]);
 
   // 카메라 권한 확보 후 2초 안정화 → 기준 측정 → 2초마다 감지
   useEffect(() => {
