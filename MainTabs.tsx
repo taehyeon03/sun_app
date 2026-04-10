@@ -4,17 +4,21 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from "react-na
 import LearnScreen from "./LearnScreen";
 import TimerTab from "./TimerTab";
 import CareScreen from "./CareScreen";
+import UVScreen from "./UVScreen";
+import FaceApplyScreen from "./FaceApplyScreen";
 import { SkinTypeResult } from "./skintype";
 
 interface Props {
   initialSkinResult?: SkinTypeResult;
 }
 
-type Tab = "learn" | "timer" | "care";
+type Tab = "learn" | "timer" | "uv" | "face" | "care";
 
 const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "learn", label: "알아보기",  emoji: "📚" },
   { id: "timer", label: "타이머",    emoji: "⏱" },
+  { id: "uv",    label: "자외선",    emoji: "☀️" },
+  { id: "face",  label: "도포확인",  emoji: "🎨" },
   { id: "care",  label: "관리",      emoji: "🌿" },
 ];
 
@@ -37,6 +41,10 @@ export default function MainTabs({ initialSkinResult }: Props) {
         )}
         {activeTab === "timer" && (
           <TimerTab skinResult={skinResult} />
+        )}
+        {activeTab === "uv" && <UVScreen />}
+        {activeTab === "face" && (
+          <FaceApplyScreen onClose={() => setActiveTab("timer")} />
         )}
         {activeTab === "care" && <CareScreen />}
       </View>

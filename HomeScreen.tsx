@@ -5,7 +5,6 @@ import {
   SafeAreaView, StatusBar, Modal,
 } from "react-native";
 import Svg, { Circle, Path, Ellipse, Line } from "react-native-svg";
-import FaceApplyScreen from "./FaceApplyScreen";
 import { SunscreenConfig } from "./SetupScreen";
 import { SkinTypeResult } from "./skintype";
 import {
@@ -98,7 +97,6 @@ export default function HomeScreen({ config, skinResult, onReset }: Props) {
     spfLabel: REAPPLY_RULES[config.productType][config.spfLevel].label,
   }]);
   const [notifGranted, setNotifGranted] = useState(false);
-  const [showFaceApply, setShowFaceApply] = useState(false);
   const [showReapplyModal, setShowReapplyModal] = useState(false);
 
   const rule = REAPPLY_RULES[activeConfig.productType][activeConfig.spfLevel];
@@ -173,11 +171,6 @@ export default function HomeScreen({ config, skinResult, onReset }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor="#0f1923" />
-
-      {/* 얼굴 도포 모달 */}
-      <Modal visible={showFaceApply} animationType="slide" onRequestClose={() => setShowFaceApply(false)}>
-        <FaceApplyScreen onClose={() => setShowFaceApply(false)} />
-      </Modal>
 
       {/* 재도포 확인 모달 */}
       <Modal
@@ -281,16 +274,6 @@ export default function HomeScreen({ config, skinResult, onReset }: Props) {
 
         {/* 500원 동전 도포량 가이드 */}
         <AmountGuide productType={activeConfig.productType} amount={rule.amount} />
-
-        {/* 얼굴 도포 체크 버튼 */}
-        <TouchableOpacity onPress={() => setShowFaceApply(true)} style={styles.faceBtn} activeOpacity={0.85}>
-          <Text style={styles.faceBtnEmoji}>👤</Text>
-          <View>
-            <Text style={styles.faceBtnTitle}>얼굴 도포 체크</Text>
-            <Text style={styles.faceBtnSub}>8개 구역을 손가락으로 직접 확인</Text>
-          </View>
-          <Text style={styles.faceBtnArrow}>→</Text>
-        </TouchableOpacity>
 
         {/* 재도포 버튼 */}
         <TouchableOpacity onPress={() => setShowReapplyModal(true)} style={styles.reapplyBtn} activeOpacity={0.85}>
@@ -477,22 +460,6 @@ const styles = StyleSheet.create({
   dollupLabel: { fontSize: 11, color: "#FFD060", fontWeight: "600" },
   amountDesc: { fontSize: 13, color: "rgba(255,255,255,0.7)", textAlign: "center", marginBottom: 6 },
   amountNote: { fontSize: 10, color: "rgba(255,255,255,0.25)", textAlign: "center", lineHeight: 14 },
-
-  faceBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-    padding: 14,
-    marginBottom: 12,
-    gap: 12,
-  },
-  faceBtnEmoji: { fontSize: 24 },
-  faceBtnTitle: { fontSize: 14, fontWeight: "700", color: "#fff", marginBottom: 2 },
-  faceBtnSub: { fontSize: 12, color: "rgba(255,255,255,0.4)" },
-  faceBtnArrow: { marginLeft: "auto", fontSize: 16, color: "rgba(255,255,255,0.3)" },
 
   skinBadge: {
     backgroundColor: "rgba(96,196,160,0.1)",
