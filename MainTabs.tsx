@@ -1,5 +1,5 @@
 // MainTabs.tsx — 하단 탭 네비게이션
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from "react-native";
 import LearnScreen from "./LearnScreen";
 import TimerTab from "./TimerTab";
@@ -7,9 +7,12 @@ import CareScreen from "./CareScreen";
 import UVScreen from "./UVScreen";
 import FaceApplyScreen from "./FaceApplyScreen";
 import { SkinTypeResult } from "./skintype";
+import { saveSkinResult } from "./appStorage";
+import type { TimerSession } from "./appStorage";
 
 interface Props {
   initialSkinResult?: SkinTypeResult;
+  initialTimerSession?: TimerSession | null;
 }
 
 type Tab = "learn" | "timer" | "uv" | "face" | "care";
@@ -22,9 +25,28 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "care",  label: "관리",      emoji: "🌿" },
 ];
 
-export default function MainTabs({ initialSkinResult }: Props) {
+export default function MainTabs({ initialSkinResult, initialTimerSession }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("timer");
   const [skinResult, setSkinResult] = useState<SkinTypeResult | undefined>(initialSkinResult);
+  const [timerSession, setTimerSession] = useState<TimerSession | null>(initialTimerSession ?? null);
+
+  useEffect(() => {
+    if (!skinResult && initialSkinResult) {
+      setSkinResult(initialSkinResult);
+    }
+  }, [initialSkinResult, skinResult]);
+
+  useEffect(() => {
+    if (!timerSession && initialTimerSession) {
+      setTimerSession(initialTimerSession);
+    }
+  }, [initialTimerSession, timerSession]);
+
+  const handleQuizComplete = (result: SkinTypeResult) => {
+    setSkinResult(result);
+    saveSkinResult(result).catch(() => {});
+    setActiveTab("timer");
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -33,14 +55,15 @@ export default function MainTabs({ initialSkinResult }: Props) {
         {activeTab === "learn" && (
           <LearnScreen
             skinResult={skinResult}
-            onQuizComplete={(r) => {
-              setSkinResult(r);
-              setActiveTab("timer");
-            }}
+            onQuizComplete={handleQuizComplete}
           />
         )}
         {activeTab === "timer" && (
-          <TimerTab skinResult={skinResult} />
+          <TimerTab
+            initialSession={timerSession}
+            skinResult={skinResult}
+            onSessionChange={setTimerSession}
+          />
         )}
         {activeTab === "uv" && <UVScreen />}
         {activeTab === "face" && (

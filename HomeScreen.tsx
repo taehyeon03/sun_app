@@ -18,6 +18,7 @@ import {
   scheduleReapplyNotification,
   cancelAllNotifications,
 } from "./notifications";
+import type { StoredHistoryEntry, TimerSession } from "./appStorage";
 
 interface HistoryEntry {
   time: Date;
@@ -27,8 +28,11 @@ interface HistoryEntry {
 
 interface Props {
   config: SunscreenConfig;
+  initialAppliedAt?: Date;
+  initialHistory?: StoredHistoryEntry[];
   skinResult?: SkinTypeResult;
   onReset: () => void;
+  onSessionChange?: (session: TimerSession) => void;
 }
 
 // ── 원형 아크 컴포넌트 ────────────────────────────────────────────────────────
@@ -87,12 +91,19 @@ function CircularTimer({ remainMins, totalMins, color }: {
 }
 
 // ── 메인 화면 ─────────────────────────────────────────────────────────────────
-export default function HomeScreen({ config, skinResult, onReset }: Props) {
+export default function HomeScreen({
+  config,
+  initialAppliedAt,
+  initialHistory,
+  skinResult,
+  onReset,
+  onSessionChange,
+}: Props) {
   const [now, setNow] = useState(new Date());
   const [activeConfig, setActiveConfig] = useState<SunscreenConfig>(config);
-  const [appliedAt, setAppliedAt] = useState(config.appliedAt);
-  const [history, setHistory] = useState<HistoryEntry[]>([{
-    time: config.appliedAt,
+  const [appliedAt, setAppliedAt] = useState(initialAppliedAt ?? config.appliedAt);
+  const [history, setHistory] = useState<HistoryEntry[]>(initialHistory?.length ? initialHistory : [{
+    time: initialAppliedAt ?? config.appliedAt,
     productType: config.productType,
     spfLabel: REAPPLY_RULES[config.productType][config.spfLevel].label,
   }]);
@@ -154,17 +165,28 @@ export default function HomeScreen({ config, skinResult, onReset }: Props) {
     const r = REAPPLY_RULES[cfg.productType][cfg.spfLevel];
     const desc = getAmountDescription(cfg.productType, cfg.amount);
     const newApplied = new Date();
-    if (newConfig) setActiveConfig(newConfig);
+    const updatedConfig = newConfig ? { ...newConfig, appliedAt: newApplied } : { ...cfg, appliedAt: newApplied };
+    if (newConfig) setActiveConfig(updatedConfig);
     setAppliedAt(newApplied);
-    setHistory((prev) => [{
+    setHistory((prev) => {
+      const nextHistory = [{
       time: newApplied,
       productType: cfg.productType,
       spfLabel: r.label,
-    }, ...prev.slice(0, 4)]);
+      }, ...prev.slice(0, 4)];
+
+      onSessionChange?.({
+        config: updatedConfig,
+        appliedAt: newApplied,
+        history: nextHistory,
+      });
+
+      return nextHistory;
+    });
     if (notifGranted) {
       await scheduleReapplyNotification(cfg.reapplyMins, r.label, desc);
     }
-  }, [notifGranted, activeConfig]);
+  }, [notifGranted, activeConfig, onSessionChange]);
 
   const productLabel = { cream: "크림", stick: "스틱", spray: "스프레이" }[activeConfig.productType];
 

@@ -4,6 +4,7 @@ import {
   View, Text, ScrollView, SafeAreaView, StatusBar,
   StyleSheet, TouchableOpacity, ActivityIndicator,
 } from "react-native";
+import { fetchCurrentUv, uvLevelInfo, UvResult } from "./uvService";
 
 const UV_LEVELS = [
   { index: "0-2", label: "낮음", emoji: "😊", color: "#10b981", desc: "자외선 차단 불필요" },
@@ -23,6 +24,9 @@ const UV_TIMES = [
 
 export default function UVScreen() {
   const [estimatedUV, setEstimatedUV] = useState("중간");
+  const [uvResult, setUvResult] = useState<UvResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     // 현재 시간에 따른 예상 UV 지수
@@ -33,7 +37,25 @@ export default function UVScreen() {
     else setEstimatedUV("낮음");
   }, []);
 
+  const loadCurrentUv = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      setUvResult(await fetchCurrentUv());
+    } catch (e: any) {
+      setError(e?.message ?? "UV 데이터를 가져올 수 없습니다");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCurrentUv();
+  }, []);
+
   const currentUVLevel = UV_LEVELS.find((lvl) => lvl.label === estimatedUV);
+  const currentInfo = uvResult ? uvLevelInfo(uvResult.uvLevel) : null;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -46,15 +68,63 @@ export default function UVScreen() {
           <Text style={styles.pageSub}>오늘의 자외선 강도를 확인하고 선크림을 도포하세요</Text>
         </View>
 
+        <View style={[
+          styles.currentUVBox,
+          { borderColor: currentInfo?.color ?? currentUVLevel?.color ?? "#FFD060" },
+        ]}>
+          <Text style={styles.currentUVEmoji}>
+            {uvResult ? "☀️" : currentUVLevel?.emoji}
+          </Text>
+          <View style={styles.currentUVInfo}>
+            {uvResult && currentInfo ? (
+              <>
+                <Text style={[styles.currentUVLabel, { color: currentInfo.color }]}>
+                  UV {uvResult.uvIndex} · {currentInfo.label}
+                </Text>
+                <Text style={styles.currentUVDesc}>{currentInfo.description}</Text>
+                <Text style={styles.currentUVTime}>
+                  {uvResult.city ? `${uvResult.city} · ` : ""}실시간 위치 기반
+                </Text>
+              </>
+            ) : currentUVLevel ? (
+              <>
+                <Text style={[styles.currentUVLabel, { color: currentUVLevel.color }]}>
+                  {currentUVLevel.label}
+                </Text>
+                <Text style={styles.currentUVDesc}>{currentUVLevel.desc}</Text>
+                <Text style={styles.currentUVTime}>현재 시간대 기준 추정</Text>
+              </>
+            ) : null}
+          </View>
+        </View>
+
+        <TouchableOpacity
+          onPress={loadCurrentUv}
+          disabled={loading}
+          style={styles.refreshBtn}
+          activeOpacity={0.8}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#0f1923" />
+          ) : (
+            <Text style={styles.refreshBtnText}>현재 위치 UV 다시 조회</Text>
+          )}
+        </TouchableOpacity>
+
+        {error && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
         {currentUVLevel && (
-          <View style={[styles.currentUVBox, { borderColor: currentUVLevel.color }]}>
-            <Text style={styles.currentUVEmoji}>{currentUVLevel.emoji}</Text>
+          <View style={styles.estimateBox}>
+            <Text style={styles.estimateTitle}>시간대 기준 예상</Text>
             <View style={styles.currentUVInfo}>
-              <Text style={[styles.currentUVLabel, { color: currentUVLevel.color }]}>
-                {currentUVLevel.label}
+              <Text style={[styles.estimateValue, { color: currentUVLevel.color }]}>
+                {currentUVLevel.label} · {currentUVLevel.desc}
               </Text>
-              <Text style={styles.currentUVDesc}>{currentUVLevel.desc}</Text>
-              <Text style={styles.currentUVTime}>
+              <Text style={styles.estimateTime}>
                 현재 시간: {new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
               </Text>
             </View>
@@ -133,6 +203,32 @@ const styles = StyleSheet.create({
   currentUVLabel: { fontSize: 18, fontWeight: "800", marginBottom: 2 },
   currentUVDesc: { fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 6 },
   currentUVTime: { fontSize: 11, color: "rgba(255,255,255,0.3)" },
+  refreshBtn: {
+    backgroundColor: "#FFD060",
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  refreshBtnText: { fontSize: 14, fontWeight: "800", color: "#0f1923" },
+  errorBox: {
+    backgroundColor: "rgba(239,68,68,0.1)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(239,68,68,0.2)",
+    padding: 12,
+    marginBottom: 12,
+  },
+  errorText: { fontSize: 12, color: "#f87171", lineHeight: 17 },
+  estimateBox: {
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 18,
+  },
+  estimateTitle: { fontSize: 11, fontWeight: "700", color: "rgba(255,255,255,0.35)", marginBottom: 4 },
+  estimateValue: { fontSize: 13, fontWeight: "700", marginBottom: 3 },
+  estimateTime: { fontSize: 11, color: "rgba(255,255,255,0.3)" },
 
   section: { marginBottom: 18 },
   sectionTitle: { fontSize: 15, fontWeight: "700", color: "#fff", marginBottom: 12 },
